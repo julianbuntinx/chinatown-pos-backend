@@ -1,15 +1,6 @@
-import type { NextApiRequest, NextApiResponse } from "next";
 import twilio from "twilio";
 
-type SendOrderStatusSmsBody = {
-  customer_phone: string;
-  location: "north" | "westlake";
-  order_id: string;
-  estimated_ready_time?: string;
-  status_type?: "placed" | "accepted" | "ready";
-};
-
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ success: false, error: "METHOD_NOT_ALLOWED" });
   }
@@ -20,7 +11,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     order_id,
     estimated_ready_time,
     status_type
-  } = req.body as SendOrderStatusSmsBody;
+  } = req.body || {};
 
   if (!customer_phone || !location || !order_id) {
     return res.status(400).json({
@@ -47,13 +38,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const client = twilio(
-      process.env.TWILIO_ACCOUNT_SID!,
-      process.env.TWILIO_AUTH_TOKEN!
-    );
+    const accountSid = process.env.TWILIO_ACCOUNT_SID;
+    const authToken = process.env.TWILIO_AUTH_TOKEN;
+    const fromNumber = process.env.TWILIO_FROM_NUMBER;
+
+    if (!accountSid || !authToken || !fromNumber) {
+      console.error("Missing Twilio env vars");
+      return res
+        .status(500)
+        .json({ success: false, error: "MISSING_TWILIO_CONFIG" });
+    }
+
+    const client = twilio(accountSid, authToken);
 
     await client.messages.create({
-      from: process.env.TWILIO_FROM_NUMBER!,
+      from: fromNumber,
       to: customer_phone,
       body: message
     });
@@ -61,6 +60,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({ success: true });
   } catch (err) {
     console.error("SMS send error:", err);
-    return res.status(500).json({ success: false, error: "SMS_SEND_FAILED" });
+    return res
+      .status(500)
+      .json({ success: false, error: "SMS_SEND_FAILED" });
   }
 }

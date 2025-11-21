@@ -1,41 +1,15 @@
-import type { NextApiRequest, NextApiResponse } from "next";
-
-type OrderItem = {
-  menu_item_name: string;
-  quantity: number;
-  special_instructions?: string;
-};
-
-type CreateTogoOrderBody = {
-  location: "north" | "westlake";
-  customer_name: string;
-  customer_phone: string;
-  pickup_time?: string;
-  items: OrderItem[];
-};
-
-type SuccessResponse = {
-  success: true;
-  order_id: string;
-  estimated_ready_time?: string;
-};
-
-type ErrorResponse = {
-  success: false;
-  error: string;
-};
-
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse<SuccessResponse | ErrorResponse>
-) {
+export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ success: false, error: "METHOD_NOT_ALLOWED" });
   }
 
-  const body = req.body as CreateTogoOrderBody;
-
-  const { location, customer_name, customer_phone, pickup_time, items } = body;
+  const {
+    location,
+    customer_name,
+    customer_phone,
+    pickup_time,
+    items
+  } = req.body || {};
 
   if (!location || !customer_name || !customer_phone || !items || items.length === 0) {
     return res
@@ -67,7 +41,7 @@ export default async function handler(
       items: items.map((i) => ({
         name: i.menu_item_name,
         quantity: i.quantity,
-        specialInstructions: i.special_instructions ?? ""
+        specialInstructions: i.special_instructions || ""
       })),
       source: "VAPI_VOICE_ASSISTANT"
     };
